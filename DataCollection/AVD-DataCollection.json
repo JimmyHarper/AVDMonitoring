@@ -1,0 +1,217 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "HostPoolId": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "LogAnalyticsWorkspaceId": {
+            "defaultValue": "",
+            "type": "String"
+        },
+        "Location": {
+            "defaultValue": "",
+            "type": "String"
+        }
+    },
+    "variables": {
+        "HostPoolName": "[split(parameters('HostPoolId'), '/')[8]]",
+        "HostPoolResourceGroup": "[split(parameters('HostPoolId'), '/')[4]]",
+        "AVDInsights_DCR_Name": "[concat('microsoft-avdi-',variables('HostPoolName'))]",
+        "VMInsights_DCR_Name": "[concat('MSVMI-',variables('HostPoolName'))]",
+        "AVD_Diagnostics_Name": "[concat('AVD-Diag-',variables('HostPoolName'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Insights/dataCollectionRules",
+            "apiVersion": "2022-06-01",
+            "name": "[variables('AVDInsights_DCR_Name')]",
+            "location": "[parameters('Location')]",
+            "kind": "Windows",
+            "properties": {
+                "dataSources": {
+                    "performanceCounters": [
+                        {
+                            "streams": [
+                                "Microsoft-Perf"
+                            ],
+                            "samplingFrequencyInSeconds": 30,
+                            "counterSpecifiers": [
+                                "\\LogicalDisk(C:)\\Avg. Disk Queue Length",
+                                "\\LogicalDisk(C:)\\Current Disk Queue Length",
+                                "\\Memory\\Available Mbytes",
+                                "\\Memory\\Page Faults/sec",
+                                "\\Memory\\Pages/sec",
+                                "\\Memory\\% Committed Bytes In Use",
+                                "\\PhysicalDisk(*)\\Avg. Disk Queue Length",
+                                "\\PhysicalDisk(*)\\Avg. Disk sec/Read",
+                                "\\PhysicalDisk(*)\\Avg. Disk sec/Transfer",
+                                "\\PhysicalDisk(*)\\Avg. Disk sec/Write",
+                                "\\Processor Information(_Total)\\% Processor Time",
+                                "\\User Input Delay per Process(*)\\Max Input Delay",
+                                "\\User Input Delay per Session(*)\\Max Input Delay",
+                                "\\RemoteFX Network(*)\\Current TCP Bandwidth",
+                                "\\RemoteFX Network(*)\\Current TCP RTT",
+                                "\\RemoteFX Network(*)\\Current UDP Bandwidth",
+                                "\\RemoteFX Network(*)\\Current UDP RTT",
+                                "\\Network Adapter(*)\\Bytes Received/sec",
+                                "\\Network Adapter(*)\\Bytes Sent/sec",
+                                "\\RemoteFX Graphics(*)\\Average Encoding Time",
+                                "\\RemoteFX Graphics(*)\\Frames Skipped/Second - Insufficient Client Resources",
+                                "\\RemoteFX Graphics(*)\\Frames Skipped/Second - Insufficient Network Resources",
+                                "\\RemoteFX Graphics(*)\\Frames Skipped/Second - Insufficient Server Resources",
+                                "\\Process(*)\\% Processor Time"
+
+
+                            ],
+                            "name": "perfCounterDataSource10"
+                        },
+                        {
+                            "streams": [
+                                "Microsoft-Perf"
+                            ],
+                            "samplingFrequencyInSeconds": 60,
+                            "counterSpecifiers": [
+                                "\\LogicalDisk(C:)\\% Free Space",
+                                "\\LogicalDisk(C:)\\Avg. Disk sec/Transfer",
+                                "\\Terminal Services(*)\\Active Sessions",
+                                "\\Terminal Services(*)\\Inactive Sessions",
+                                "\\Terminal Services(*)\\Total Sessions"
+                            ],
+                            "name": "perfCounterDataSource30"
+                        }
+                    ],
+                    "windowsEventLogs": [
+                        {
+                            "streams": [
+                                "Microsoft-Event"
+                            ],
+                            "xPathQueries": [
+                                "Microsoft-Windows-TerminalServices-RemoteConnectionManager/Admin!*[System[(Level=2 or Level=3 or Level=4 or Level=0)]]",
+                                "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational!*[System[(Level=2 or Level=3 or Level=4 or Level=0)]]",
+                                "System!*",
+                                "Microsoft-FSLogix-Apps/Operational!*[System[(Level=2 or Level=3 or Level=4 or Level=0)]]",
+                                "Application!*[System[(Level=2 or Level=3)]]",
+                                "Microsoft-FSLogix-Apps/Admin!*[System[(Level=2 or Level=3 or Level=4 or Level=0)]]"
+                            ],
+                            "name": "eventLogsDataSource"
+                        }
+                    ]
+                },
+                "destinations": {
+                    "logAnalytics": [
+                        {
+                            "workspaceResourceId": "[parameters('LogAnalyticsWorkspaceId')]",
+                            "name": "la-workspace"
+                        }
+                    ]
+                },
+                "dataFlows": [
+                    {
+                        "streams": [
+                            "Microsoft-Perf",
+                            "Microsoft-Event"
+                        ],
+                        "destinations": [
+                            "la-workspace"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Insights/dataCollectionRules",
+            "apiVersion": "2022-06-01",
+            "name": "[variables('VMInsights_DCR_Name')]",
+            "location": "[parameters('Location')]",
+            "properties": {
+                "description": "Data collection rule for VM Insights.",
+                "dataSources": {
+                    "performanceCounters": [
+                        {
+                            "streams": [
+                                "Microsoft-InsightsMetrics"
+                            ],
+                            "samplingFrequencyInSeconds": 60,
+                            "counterSpecifiers": [
+                                "\\VmInsights\\DetailedMetrics"
+                            ],
+                            "name": "VMInsightsPerfCounters"
+                        }
+                    ],
+                    "extensions": [
+                        {
+                            "streams": [
+                                "Microsoft-ServiceMap"
+                            ],
+                            "extensionName": "DependencyAgent",
+                            "extensionSettings": {},
+                            "name": "DependencyAgentDataSource"
+                        }
+                    ]
+                },
+                "destinations": {
+                    "logAnalytics": [
+                        {
+                            "workspaceResourceId": "[parameters('LogAnalyticsWorkspaceId')]",
+                            "name": "VMInsightsPerf-Logs-Dest"
+                        }
+                    ]
+                },
+                "dataFlows": [
+                    {
+                        "streams": [
+                            "Microsoft-InsightsMetrics"
+                        ],
+                        "destinations": [
+                            "VMInsightsPerf-Logs-Dest"
+                        ]
+                    },
+                    {
+                        "streams": [
+                            "Microsoft-ServiceMap"
+                        ],
+                        "destinations": [
+                            "VMInsightsPerf-Logs-Dest"
+                        ]
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "nestedTemplate",
+            "resourceGroup": "[variables('HostPoolResourceGroup')]",
+            "properties": {
+              "mode": "Incremental",
+              "template": {
+                "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                "contentVersion": "1.0.0.0",
+                "parameters": {},
+                "variables": {},
+                "resources": [
+                  {
+                    "type": "Microsoft.Insights/diagnosticSettings",
+                    "apiVersion": "2021-05-01-preview",
+                    "scope": "[parameters('HostPoolId')]",
+                    "name": "[variables('AVD_Diagnostics_Name')]",
+                    "properties": {
+                     "workspaceId": "[parameters('LogAnalyticsWorkspaceId')]",
+                    "logs": [
+                           {
+                          "category": null,
+                          "categoryGroup": "allLogs",
+                          "enabled": true
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              "parameters": {}
+            }
+        }
+    ]
+}

@@ -1,0 +1,19 @@
+{
+    "$schema":  "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion":  "1.0.0.0",
+    "parameters":  
+    {
+        "HostPoolName": {
+            "value":  "HOST_POOL_NAME"
+        },
+        "HostPoolId": {
+            "value":  "HOST_POOL_ID"
+        },
+        "LogAnalyticsWorkspaceId": {
+            "value":  "LOG_ANALYTICS_WORKSPACE_ID"
+        },
+        "Location": {
+            "value":  "LOCATION"
+        }
+    }
+}
