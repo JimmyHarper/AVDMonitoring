@@ -1,0 +1,1825 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 11,
+            "content": {
+              "version": "LinkItem/1.0",
+              "style": "tabs",
+              "links": [
+                {
+                  "id": "a58c3ea1-76a0-46aa-bd18-14d3084875b6",
+                  "cellValue": "selectedTab",
+                  "linkTarget": "parameter",
+                  "linkLabel": "Overview",
+                  "subTarget": "Overview",
+                  "style": "link"
+                },
+                {
+                  "id": "eac77638-e60c-458f-8f06-b5e8046c7330",
+                  "cellValue": "selectedTab",
+                  "linkTarget": "parameter",
+                  "linkLabel": "Details",
+                  "subTarget": "Details",
+                  "style": "link"
+                }
+              ]
+            },
+            "name": "links - 10"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": [
+                {
+                  "type": 12,
+                  "content": {
+                    "version": "NotebookGroup/1.0",
+                    "groupType": "editable",
+                    "title": "Monitoring Configuration",
+                    "items": [
+                      {
+                        "type": 9,
+                        "content": {
+                          "version": "KqlParameterItem/1.0",
+                          "crossComponentResources": [
+                            "{subscription}"
+                          ],
+                          "parameters": [
+                            {
+                              "id": "7aae2c7c-6b5a-4a12-9c88-eefe7900e610",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "subscription",
+                              "label": "Subscription",
+                              "type": 6,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "includeAll": true,
+                                "showDefault": false
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "value": [
+                                ""
+                              ]
+                            },
+                            {
+                              "id": "40f5c83d-1a82-4186-83f9-934e125bef19",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "PolicyAssignments",
+                              "label": "Policy Assignments",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "policyresources\r\n| where type == \"microsoft.authorization/policyassignments\"\r\n| extend DisplayName = tostring(properties.displayName)\r\n| extend policyDefinitionId = tostring(properties.policyDefinitionId)\r\n| project name,DisplayName,policyDefinitionId\r\n| join kind=leftouter (\r\npolicyresources\r\n| where type in (\"microsoft.authorization/policydefinitions\",\"microsoft.authorization/policysetdefinitions\")\r\n| extend PolicyDefinitionName = tostring(properties.displayName)\r\n| extend name = tostring(name)\r\n| extend Category = properties.metadata.category\r\n| project PolicyDefinitionName,Category,name,id\r\n) on $left.policyDefinitionId == $right.id\r\n| where Category == \"Monitoring\"\r\n| project name,DisplayName\r\n| order by DisplayName asc",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "44a7653a7468481a8e345272"
+                              ]
+                            }
+                          ],
+                          "style": "pills",
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources"
+                        },
+                        "name": "parameters - 3 - Copy - Copy"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "policyresources\r\n| where type =~ 'Microsoft.PolicyInsights/PolicyStates'\r\n| extend complianceState = tostring(properties.complianceState)\r\n| extend\r\n\tresourceId = tostring(properties.resourceId),\r\n\tpolicyAssignmentId = tostring(properties.policyAssignmentId),\r\n\tpolicyAssignmentScope = tostring(properties.policyAssignmentScope),\r\n\tpolicyAssignmentName = tostring(properties.policyAssignmentName),\r\n\tpolicyDefinitionId = tostring(properties.policyDefinitionId),\r\n\tpolicyDefinitionReferenceId = tostring(properties.policyDefinitionReferenceId),\r\n\tstateWeight = iff(complianceState == 'NonCompliant', int(300), iff(complianceState == 'Compliant', int(200), iff(complianceState == 'Conflict', int(100), iff(complianceState == 'Exempt', int(50), int(0)))))\r\n| summarize max(stateWeight) by resourceId, policyAssignmentId, policyAssignmentScope, policyAssignmentName\r\n| summarize counts = count() by policyAssignmentId, policyAssignmentScope, max_stateWeight, policyAssignmentName\r\n| summarize overallStateWeight = max(max_stateWeight),\r\nnonCompliantCount = sumif(counts, max_stateWeight == 300),\r\ncompliantCount = sumif(counts, max_stateWeight == 200),\r\nconflictCount = sumif(counts, max_stateWeight == 100),\r\nexemptCount = sumif(counts, max_stateWeight == 50) by policyAssignmentId, policyAssignmentScope, policyAssignmentName\r\n| extend totalResources = todouble(nonCompliantCount + compliantCount + conflictCount + exemptCount)\r\n| extend compliancePercentage = iff(totalResources == 0, todouble(100), 100 * todouble(compliantCount + exemptCount) / totalResources)\r\n| project \r\ncomplianceState = iff(overallStateWeight == 300, 'noncompliant', iff(overallStateWeight == 200, 'compliant', iff(overallStateWeight == 100, 'conflict', iff(overallStateWeight == 50, 'exempt', 'notstarted')))),\r\npolicyAssignmentName, scope = policyAssignmentScope,\r\ncompliancePercentage,\r\ncompliantCount,\r\nnonCompliantCount,\r\nconflictCount,\r\nexemptCount\r\n| where policyAssignmentName in ({PolicyAssignments})\r\n| join kind=leftouter (\r\npolicyresources\r\n| where type == \"microsoft.authorization/policyassignments\"\r\n| extend name=tostring(name)\r\n| extend DisplayName = tostring(properties.displayName)\r\n| project name,DisplayName\r\n) on $left.policyAssignmentName == $right.name\r\n| project complianceState,DisplayName,scope,compliancePercentage,compliantCount,nonCompliantCount,conflictCount,exemptCount\r\n\r\n",
+                          "size": 3,
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources",
+                          "crossComponentResources": [
+                            "{subscription}"
+                          ],
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "complianceState",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "compliant",
+                                      "representation": "success",
+                                      "text": "[\"DisplayName\"]"
+                                    },
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "noncompliant",
+                                      "representation": "4",
+                                      "text": "[\"DisplayName\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "unknown",
+                                      "text": "[\"DisplayName\"]"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "47.4286ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "DisplayName",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "compliancePercentage",
+                                "formatter": 4,
+                                "formatOptions": {
+                                  "min": 0,
+                                  "max": 100,
+                                  "palette": "redGreen",
+                                  "customColumnWidthSetting": "143px"
+                                },
+                                "numberFormat": {
+                                  "unit": 1,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "policyAssignmentName",
+                                "formatter": 5
+                              }
+                            ],
+                            "sortBy": [
+                              {
+                                "itemKey": "$gen_thresholds_complianceState_0",
+                                "sortOrder": 2
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "complianceState",
+                                "label": "Policy Assignment"
+                              },
+                              {
+                                "columnId": "DisplayName",
+                                "label": "DisplayName"
+                              },
+                              {
+                                "columnId": "scope",
+                                "label": "Scope"
+                              },
+                              {
+                                "columnId": "compliancePercentage",
+                                "label": "Compliance"
+                              },
+                              {
+                                "columnId": "compliantCount",
+                                "label": "Compliant"
+                              },
+                              {
+                                "columnId": "nonCompliantCount",
+                                "label": "Non-Compliant"
+                              },
+                              {
+                                "columnId": "conflictCount",
+                                "label": "Conflict"
+                              },
+                              {
+                                "columnId": "exemptCount",
+                                "label": "Exempt"
+                              }
+                            ]
+                          },
+                          "sortBy": [
+                            {
+                              "itemKey": "$gen_thresholds_complianceState_0",
+                              "sortOrder": 2
+                            }
+                          ]
+                        },
+                        "name": "query - 4"
+                      }
+                    ]
+                  },
+                  "customWidth": "90",
+                  "name": "Monitoring Configuration Group",
+                  "styleSettings": {
+                    "showBorder": true
+                  }
+                },
+                {
+                  "type": 12,
+                  "content": {
+                    "version": "NotebookGroup/1.0",
+                    "groupType": "editable",
+                    "title": "Monitoring Data Collection",
+                    "items": [
+                      {
+                        "type": 9,
+                        "content": {
+                          "version": "KqlParameterItem/1.0",
+                          "crossComponentResources": [
+                            "value::all"
+                          ],
+                          "parameters": [
+                            {
+                              "id": "9a245eb6-52fb-4b82-92bc-bddf6823ad35",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "HostPools",
+                              "label": "Host Pools",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where ['type'] == \"microsoft.desktopvirtualization/hostpools\"\r\n| project name",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "00d0650d-5e16-4377-a46a-ef024dfcb16a",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "Hostpools2",
+                              "type": 5,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where ['type'] == \"microsoft.desktopvirtualization/hostpools\"\r\n| where name in ({HostPools})",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "isHiddenWhenLocked": true,
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            },
+                            {
+                              "id": "191bc507-8d8b-4877-b4a8-15fe1e673451",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ResourceGroups",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where ['type'] == \"microsoft.desktopvirtualization/hostpools\"\r\n| where name in ({HostPools})\r\n| project resourceGroup",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "isHiddenWhenLocked": true,
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ]
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            },
+                            {
+                              "id": "5a2f09e3-f49b-4bb2-ab3d-4fdf65b0c16c",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "Subscriptions",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where ['type'] == \"microsoft.desktopvirtualization/hostpools\"\r\n| where name in ({HostPools})\r\n| project subscriptionId",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "isHiddenWhenLocked": true,
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            },
+                            {
+                              "id": "d705105b-23b3-4ba6-bb8f-fcc2b038856a",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "LogAnalyticsWorkspaces",
+                              "label": "Log Analytics Workspaces",
+                              "type": 5,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where type == \"microsoft.operationalinsights/workspaces\"\r\n| where subscriptionId in ({Subscriptions})",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            }
+                          ],
+                          "style": "pills",
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources"
+                        },
+                        "name": "parameters - 3"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "resources\r\n| where id in ({Hostpools2})\r\n| extend HostPool = name\r\n| project HostPool, resourceGroup\r\n| join (\r\nresources\r\n| where resourceGroup in ({ResourceGroups})\r\n| where type == \"microsoft.compute/virtualmachines\"\r\n| extend PowerStatus = tostring(properties.extended.instanceView.powerState.displayStatus),\r\n\tOSType = tostring(properties.storageProfile.osDisk.osType),\r\n    IdentityType = identity.type,\r\n    ComputerName = tolower(name)\r\n| where OSType == \"Windows\"\r\n| extend ResourceType=\"Virtual Machine\"\r\n| project ComputerName, id, location, resourceGroup, PowerStatus, OSType, IdentityType,ResourceType\r\n| join kind=leftouter (\r\nresources\r\n| where type contains \"microsoft.compute/virtualmachines/extensions\"\r\n| extend publisher = properties.publisher\r\n| where publisher =~ \"Microsoft.Azure.Monitor\"\r\n| parse id with * \"/virtualMachines/\" ComputerName \"/\" *\r\n| extend extensionType = properties.type, \r\n\tstatus = tostring(properties.provisioningState),\r\n\tversion = properties.typeHandlerVersion,\r\n    ComputerName = tolower(ComputerName)\r\n| project ComputerName, AMA = name, AMAStatus = status, AMAVersion = version\r\n) on ComputerName\r\n| extend AMAStatus=case(AMAStatus==\"Succeeded\",\"Installed\",\"Not Installed\")\r\n| project ComputerName, ResourceID = tolower(id),ResourceType,location, resourceGroup, OSType, PowerStatus,AMAStatus\r\n| summarize Count=count(),VMRunning = count(PowerStatus==\"VM running\"),AMAInstalled=count(AMAStatus==\"Installed\") by resourceGroup\r\n) on resourceGroup\r\n| project-away resourceGroup1",
+                          "size": 0,
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources",
+                          "crossComponentResources": [
+                            "value::all"
+                          ]
+                        },
+                        "conditionalVisibility": {
+                          "parameterName": "selectedTab",
+                          "comparison": "isEqualTo",
+                          "value": "xxx"
+                        },
+                        "name": "RG_ResourceCount"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "Heartbeat\r\n| where ResourceGroup in~ ({ResourceGroups})\r\n| where TimeGenerated >ago(90d)\r\n| where Category == \"Azure Monitor Agent\"\r\n| extend ResourceId=tolower(_ResourceId)\r\n| summarize lasthb=arg_max(TimeGenerated,*) by ResourceId\r\n| where ResourceType =~ \"virtualMachines\" or ResourceType =~ \"virtualMachineScaleSets\"\r\n| extend ResourceType = tolower(ResourceType)\r\n| extend Computer=case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| distinct Computer,OSType,ResourceId,ResourceType,ResourceGroup,SubscriptionId\r\n| join kind=fullouter\r\n(\r\n//AMA Heartbeat\r\nHeartbeat\r\n| where ResourceGroup in~ ({ResourceGroups})\r\n| where TimeGenerated >ago(90d)\r\n| extend ResourceType=tolower(ResourceType)\r\n| extend ResourceId = tolower(ResourceId)\r\n| where ResourceType in (\"virtualmachines\",\"virtualmachinescalesets\")\r\n| where Category == \"Azure Monitor Agent\"\r\n| extend Computer=case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer = toupper(Computer) \r\n| summarize LastAMAHeartbeat = arg_max(TimeGenerated,ResourceId,OSType) by Computer//ResourceId, Computer,OSType\r\n| extend TimeFromNow = now() - LastAMAHeartbeat\r\n| extend AMAHeartbeat = toint(TimeFromNow / 1s)\r\n) on Computer\r\n| join kind=leftouter\r\n//VMInsights\r\n(\r\nInsightsMetrics\r\n| where Origin == \"vm.azm.ms\"\r\n| where Name != \"Heartbeat\"\r\n| extend _ResourceId = tolower(_ResourceId)\r\n| extend Computer=case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastVMICollection = max(TimeGenerated) by ResourceId\r\n| extend TimeFromNow = now() - LastVMICollection\r\n| extend VMICollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//AVDPerf\r\n|join kind=leftouter (\r\nPerf\r\n| where ObjectName == \"User Input Delay per Session\"\r\n| extend _ResourceId = tolower(_ResourceId)\r\n| extend Computer=case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastAVDPerfCollection = max(TimeGenerated) by ResourceId\r\n| extend TimeFromNow = now() - LastAVDPerfCollection\r\n| extend AVDPerfCollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//WVDDiag\r\n| join kind=leftouter (\r\nWVDAgentHealthStatus\r\n| where TimeGenerated >ago(2d)\r\n| extend ResourceId = tolower(SessionHostResourceId)\r\n| extend Computer = toupper(SessionHostName) \r\n| summarize LastWVDDiag = arg_max(TimeGenerated,ResourceId) by Computer\r\n| extend TimeFromNow = now() - LastWVDDiag\r\n| extend WVDDiag = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n| extend AMAState = case (LastAMAHeartbeat>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend VMInsightsState = case (LastVMICollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend AVDPerfState = case (LastAVDPerfCollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend WVDDiagState = case (LastWVDDiag>ago(5m),\"Connected\",\"Not Connected\")\r\n| project Computer,ResourceType,OSType,SubscriptionId,ResourceGroup,ResourceId,AMAHeartbeat,VMICollection,AMAState,VMInsightsState,AVDPerfState,WVDDiagState\r\n| extend ResourceGroup=tolower(ResourceGroup)\r\n| summarize AMAConnectedCount=count(AMAState == \"Connected\"), VMInsightsConnectedCount=count(VMInsightsState==\"Connected\"),AVDPerfConnectedCount=count(AVDPerfState==\"Connected\"),WVDDiagConnectedCount=count(WVDDiagState==\"Connected\") by ResourceGroup",
+                          "size": 0,
+                          "timeContext": {
+                            "durationMs": 86400000
+                          },
+                          "queryType": 0,
+                          "resourceType": "microsoft.operationalinsights/workspaces",
+                          "crossComponentResources": [
+                            "{LogAnalyticsWorkspaces}"
+                          ],
+                          "sortBy": []
+                        },
+                        "conditionalVisibility": {
+                          "parameterName": "selectedTab",
+                          "comparison": "isEqualTo",
+                          "value": "xxx"
+                        },
+                        "name": "LAW_ResourceCount"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "{\"version\":\"Merge/1.0\",\"merges\":[{\"id\":\"79a90621-8e6a-4a0c-a4d4-dcc4c4e8f09e\",\"mergeType\":\"innerunique\",\"leftTable\":\"RG_ResourceCount\",\"rightTable\":\"LAW_ResourceCount\",\"leftColumn\":\"resourceGroup\",\"rightColumn\":\"ResourceGroup\"}],\"projectRename\":[{\"originalName\":\"[RG_ResourceCount].id\",\"mergedName\":\"id\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].name\",\"mergedName\":\"name\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].type\",\"mergedName\":\"type\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].tenantId\",\"mergedName\":\"tenantId\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].kind\",\"mergedName\":\"kind\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].location\",\"mergedName\":\"location\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].resourceGroup\",\"mergedName\":\"resourceGroup\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].subscriptionId\",\"mergedName\":\"subscriptionId\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].managedBy\",\"mergedName\":\"managedBy\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].sku\",\"mergedName\":\"sku\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].plan\",\"mergedName\":\"plan\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].properties\",\"mergedName\":\"properties\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].tags\",\"mergedName\":\"tags\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].identity\",\"mergedName\":\"identity\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].zones\",\"mergedName\":\"zones\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].extendedLocation\",\"mergedName\":\"extendedLocation\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].ResourceGroup1\",\"mergedName\":\"ResourceGroup1\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].ResourceGroup\",\"mergedName\":\"ResourceGroup\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].resourceGroup1\",\"mergedName\":\"resourceGroup1\",\"fromId\":\"unknown\"},{\"originalName\":\"[RG_ResourceCount].HostPool\",\"mergedName\":\"HostPool\",\"fromId\":\"79a90621-8e6a-4a0c-a4d4-dcc4c4e8f09e\"},{\"originalName\":\"[RG_ResourceCount].Count\",\"mergedName\":\"Count\",\"fromId\":\"79a90621-8e6a-4a0c-a4d4-dcc4c4e8f09e\"},{\"originalName\":\"[RG_ResourceCount].VMRunning\",\"mergedName\":\"VMRunning\",\"fromId\":\"79a90621-8e6a-4a0c-a4d4-dcc4c4e8f09e\"},{\"originalName\":\"[RG_ResourceCount].AMAInstalled\",\"mergedName\":\"AMAInstalled\",\"fromId\":\"79a90621-8e6a-4a0c-a4d4-dcc4c4e8f09e\"},{\"originalName\":\"[LAW_ResourceCount].ResourceGroup\",\"mergedName\":\"ResourceGroup\",\"fromId\":\"79a90621-8e6a-4a0c-a4d4-dcc4c4e8f09e\"},{\"originalName\":\"[LAW_ResourceCount].AMAConnectedCount\",\"mergedName\":\"AMAConnectedCount\",\"fromId\":\"79a90621-8e6a-4a0c-a4d4-dcc4c4e8f09e\"},{\"originalName\":\"[LAW_ResourceCount].VMInsightsConnectedCount\",\"mergedName\":\"VMInsightsConnectedCount\",\"fromId\":\"79a90621-8e6a-4a0c-a4d4-dcc4c4e8f09e\"},{\"originalName\":\"[LAW_ResourceCount].AVDPerfConnectedCount\",\"mergedName\":\"AVDPerfConnectedCount\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAW_ResourceCount].WVDDiagConnectedCount\",\"mergedName\":\"WVDDiagConnectedCount\",\"fromId\":\"unknown\"}]}",
+                          "size": 3,
+                          "queryType": 7,
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "resourceGroup",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "Count",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "VMRunning",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "0",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "1",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAInstalled",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "0 / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"Count\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"Count\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "ResourceGroup",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "AMAConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "0 / [\"VMRunning\"]"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"VMRunning\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"VMRunning\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"VMRunning\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "VMInsightsConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "0 / [\"VMRunning\"]"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"VMRunning\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"VMRunning\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"VMRunning\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "AVDPerfConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "0 / [\"VMRunning\"]"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"VMRunning\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"VMRunning\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"VMRunning\"]"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "WVDDiagConnectedCount",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "0 / [\"VMRunning\"]"
+                                    },
+                                    {
+                                      "operator": "<",
+                                      "thresholdValue": "[\"VMRunning\"]",
+                                      "representation": "4",
+                                      "text": "{0}{1} / [\"VMRunning\"]"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1} / [\"VMRunning\"]"
+                                    }
+                                  ]
+                                }
+                              }
+                            ],
+                            "sortBy": [
+                              {
+                                "itemKey": "HostPool",
+                                "sortOrder": 1
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "resourceGroup",
+                                "label": "ResourceGroup"
+                              },
+                              {
+                                "columnId": "HostPool",
+                                "label": "Host Pool"
+                              },
+                              {
+                                "columnId": "Count",
+                                "label": "Count"
+                              },
+                              {
+                                "columnId": "VMRunning",
+                                "label": "VM Running"
+                              },
+                              {
+                                "columnId": "AMAInstalled",
+                                "label": "Agent Installed"
+                              },
+                              {
+                                "columnId": "ResourceGroup",
+                                "label": "Resource Group"
+                              },
+                              {
+                                "columnId": "AMAConnectedCount",
+                                "label": "Heartbeat"
+                              },
+                              {
+                                "columnId": "VMInsightsConnectedCount",
+                                "label": "VM Insights"
+                              },
+                              {
+                                "columnId": "AVDPerfConnectedCount",
+                                "label": "AVD Performance"
+                              },
+                              {
+                                "columnId": "WVDDiagConnectedCount",
+                                "label": "AVD Diagnostics"
+                              }
+                            ]
+                          },
+                          "sortBy": [
+                            {
+                              "itemKey": "HostPool",
+                              "sortOrder": 1
+                            }
+                          ]
+                        },
+                        "showPin": false,
+                        "name": "Merge-ResourceCount"
+                      }
+                    ]
+                  },
+                  "customWidth": "90",
+                  "name": "Monitoring Data Group",
+                  "styleSettings": {
+                    "showBorder": true
+                  }
+                }
+              ]
+            },
+            "conditionalVisibility": {
+              "parameterName": "selectedTab",
+              "comparison": "isEqualTo",
+              "value": "Overview"
+            },
+            "name": "Overview Group"
+          },
+          {
+            "type": 12,
+            "content": {
+              "version": "NotebookGroup/1.0",
+              "groupType": "editable",
+              "items": [
+                {
+                  "type": 12,
+                  "content": {
+                    "version": "NotebookGroup/1.0",
+                    "groupType": "editable",
+                    "title": "Monitoring Configuration Compliance (Azure Policy)",
+                    "items": [
+                      {
+                        "type": 9,
+                        "content": {
+                          "version": "KqlParameterItem/1.0",
+                          "parameters": [
+                            {
+                              "id": "0192e2b5-4683-4347-8f9b-48fff727005a",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "subscription",
+                              "label": "Subscription",
+                              "type": 6,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "includeAll": true,
+                                "showDefault": false
+                              },
+                              "timeContext": {
+                                "durationMs": 86400000
+                              },
+                              "value": [
+                                "/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40"
+                              ]
+                            },
+                            {
+                              "id": "3314507e-2772-4b8e-81b7-d1efb45f82e1",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "PolicyAssignments",
+                              "label": "Policy Assignments",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "policyresources\r\n| where type == \"microsoft.authorization/policyassignments\"\r\n| extend DisplayName = tostring(properties.displayName)\r\n| extend policyDefinitionId = tostring(properties.policyDefinitionId)\r\n| project name,DisplayName,policyDefinitionId\r\n| join kind=leftouter (\r\npolicyresources\r\n| where type in (\"microsoft.authorization/policydefinitions\",\"microsoft.authorization/policysetdefinitions\")\r\n| extend PolicyDefinitionName = tostring(properties.displayName)\r\n| extend name = tostring(name)\r\n| extend Category = properties.metadata.category\r\n| project PolicyDefinitionName,Category,name,id\r\n) on $left.policyDefinitionId == $right.id\r\n| where Category == \"Monitoring\"\r\n| project name,DisplayName\r\n| order by DisplayName asc",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "44a7653a7468481a8e345272"
+                              ]
+                            },
+                            {
+                              "id": "71f72d48-b28a-473e-8285-9c47f08e90bc",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "Compliance",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "PolicyResources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend ComplianceState = tostring(properties.complianceState)\r\n| distinct ComplianceState",
+                              "crossComponentResources": [
+                                "{subscription}"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ]
+                              },
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            }
+                          ],
+                          "style": "pills",
+                          "queryType": 0,
+                          "resourceType": "microsoft.resourcegraph/resources"
+                        },
+                        "name": "parameters - 3 - Copy - Copy - Copy"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "PolicyResources\r\n| where type == 'microsoft.policyinsights/policystates'\r\n| extend Resource = tostring(properties.resourceId), policyAssignmentName = tostring(properties.policyAssignmentName), PolicyDefinitionReferenceID = tostring(properties.policyDefinitionReferenceId),ComplianceState = tostring(properties.complianceState)\r\n| where policyAssignmentName in ({PolicyAssignments})\r\n//| where ComplianceState == 'NonCompliant'\r\n| where ComplianceState in ({Compliance})\r\n| project Resource,policyAssignmentName,PolicyDefinitionReferenceID,ComplianceState\r\n| join kind=leftouter (\r\npolicyresources\r\n| where type == \"microsoft.authorization/policyassignments\"\r\n| extend name=tostring(name)\r\n| extend PolicyAssignmentDisplayName = tostring(properties.displayName)\r\n| extend policyDefinitionId = tostring(properties.policyDefinitionId)\r\n//| project name,PolicyAssignmentDisplayName\r\n| where PolicyAssignmentDisplayName contains \"monitor\"\r\n) on $left.policyAssignmentName == $right.name\r\n| where PolicyAssignmentDisplayName contains \"monitor\"\r\n| project Resource, policyAssignmentName,PolicyAssignmentDisplayName,PolicyDefinitionReferenceID,policyDefinitionId,ComplianceState\r\n//| project Resource,DisplayName,PolicyDefinitionReferenceID\r\n| join kind=leftouter (\r\nPolicyResources\r\n| where type in (\"microsoft.authorization/policydefinitions\",\"microsoft.authorization/policysetdefinitions\")\r\n//| where id in (\"/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40/providers/Microsoft.Authorization/policyDefinitions/4a5867f7-bed4-4d69-aa44-30cb18fbe7ec\")\r\n| extend PolicyDisplayName = tostring(properties.displayName)\r\n| project id,PolicyDisplayName\r\n) on $left.policyDefinitionId == $right.id\r\n| extend PolicyReference = case(isempty(PolicyDefinitionReferenceID),PolicyDisplayName,PolicyDefinitionReferenceID)\r\n| project ComplianceState,Resource,PolicyAssignmentDisplayName,PolicyReference//,PolicyDefinitionReferenceID,PolicyDisplayName",
+                          "size": 0,
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources",
+                          "crossComponentResources": [
+                            "{subscription}"
+                          ],
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "ComplianceState",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "Compliant",
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "NonCompliant",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "unknown",
+                                      "text": "{0}{1}"
+                                    }
+                                  ],
+                                  "customColumnWidthSetting": "20.7143ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "Resource",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "21.7143ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "PolicyAssignmentDisplayName",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "45.4286ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "PolicyReference",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "50ch"
+                                }
+                              }
+                            ],
+                            "rowLimit": 1000,
+                            "filter": true,
+                            "sortBy": [
+                              {
+                                "itemKey": "$gen_link_Resource_1",
+                                "sortOrder": 1
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "ComplianceState",
+                                "label": "Compliant"
+                              },
+                              {
+                                "columnId": "Resource",
+                                "label": "Resource"
+                              },
+                              {
+                                "columnId": "PolicyAssignmentDisplayName",
+                                "label": "Policy Assignment"
+                              },
+                              {
+                                "columnId": "PolicyReference",
+                                "label": "Policy Name / Reference"
+                              }
+                            ]
+                          },
+                          "sortBy": [
+                            {
+                              "itemKey": "$gen_link_Resource_1",
+                              "sortOrder": 1
+                            }
+                          ]
+                        },
+                        "name": "query - 0"
+                      }
+                    ]
+                  },
+                  "customWidth": "75",
+                  "name": "PolicyConfigGroup",
+                  "styleSettings": {
+                    "showBorder": true
+                  }
+                },
+                {
+                  "type": 12,
+                  "content": {
+                    "version": "NotebookGroup/1.0",
+                    "groupType": "editable",
+                    "title": "Monitoring Data Collection",
+                    "items": [
+                      {
+                        "type": 9,
+                        "content": {
+                          "version": "KqlParameterItem/1.0",
+                          "crossComponentResources": [
+                            "value::all"
+                          ],
+                          "parameters": [
+                            {
+                              "id": "badbdc5f-2546-4aa2-b18a-3a0cdf9d1600",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "HostPools",
+                              "label": "Host Pools",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where ['type'] == \"microsoft.desktopvirtualization/hostpools\"\r\n| project name",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ]
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "deb8af06-5aed-4b19-b5b8-bf8425aae5ef",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "Hostpools2",
+                              "type": 7,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where ['type'] == \"microsoft.desktopvirtualization/hostpools\"\r\n| where name in ({HostPools})",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "isHiddenWhenLocked": true,
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ]
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            },
+                            {
+                              "id": "cbb38dac-ccbd-4146-9488-29a80fad7d36",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ResourceGroups",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where ['type'] == \"microsoft.desktopvirtualization/hostpools\"\r\n| where name in ({HostPools})\r\n| project resourceGroup",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "isHiddenWhenLocked": true,
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ]
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            },
+                            {
+                              "id": "cb478515-e461-49a0-b989-f5270e2384ce",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "Subscriptions",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where ['type'] == \"microsoft.desktopvirtualization/hostpools\"\r\n| where name in ({HostPools})\r\n| project subscriptionId",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "isHiddenWhenLocked": true,
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ]
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            },
+                            {
+                              "id": "8b31cf28-0c64-4e99-96b1-5dbfa6b568f3",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "LogAnalyticsWorkspaces",
+                              "label": "Log Analytics Workspaces",
+                              "type": 5,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where type == \"microsoft.operationalinsights/workspaces\"\r\n| where subscriptionId in ({Subscriptions})",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources",
+                              "value": [
+                                "/subscriptions/93e078d2-5dcc-4825-8290-f8fa50912c40/resourceGroups/AVD/providers/Microsoft.OperationalInsights/workspaces/ALA-AVD"
+                              ]
+                            },
+                            {
+                              "id": "b9540fc1-3197-4fd9-aecb-8b52141a6ba0",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "PowerStatus",
+                              "label": "Power Status",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "query": "resources\r\n| where type == \"microsoft.compute/virtualmachines\"\r\n| extend PowerStatus = tostring(properties.extended.instanceView.powerState.displayStatus)\r\n| distinct PowerStatus",
+                              "crossComponentResources": [
+                                "value::all"
+                              ],
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "defaultValue": "value::all",
+                              "queryType": 1,
+                              "resourceType": "microsoft.resourcegraph/resources"
+                            },
+                            {
+                              "id": "d58e0b3b-ab39-4ab9-bae2-2d0bef90c82e",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "AMAInstalled",
+                              "label": "Azure Monitor Agent",
+                              "type": 2,
+                              "isRequired": true,
+                              "multiSelect": true,
+                              "quote": "'",
+                              "delimiter": ",",
+                              "typeSettings": {
+                                "additionalResourceOptions": [
+                                  "value::all"
+                                ],
+                                "showDefault": false
+                              },
+                              "jsonData": " [\"Installed\", \"Not Installed\"]",
+                              "defaultValue": "value::all",
+                              "value": [
+                                "value::all"
+                              ]
+                            },
+                            {
+                              "id": "2c6102bd-89ce-49a8-9564-dc1e4245180e",
+                              "version": "KqlParameterItem/1.0",
+                              "name": "ShowAll",
+                              "label": "Resource Filter",
+                              "type": 2,
+                              "query": "{\"version\":\"1.0.0\",\"content\":\" [\\\"Only Disconnected\\\", \\\"Show All\\\"]\",\"transformers\":null}",
+                              "typeSettings": {
+                                "additionalResourceOptions": [],
+                                "showDefault": false
+                              },
+                              "queryType": 8,
+                              "value": "Show All"
+                            }
+                          ],
+                          "style": "pills",
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources"
+                        },
+                        "name": "parameters - 3"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "resources\r\n| where id in ({Hostpools2})\r\n| extend HostPool = name\r\n| project HostPool, resourceGroup\r\n| join (\r\nresources\r\n| where resourceGroup in ({ResourceGroups})\r\n| where type == \"microsoft.compute/virtualmachines\"\r\n| extend PowerStatus = tostring(properties.extended.instanceView.powerState.displayStatus),\r\n\tOSType = tostring(properties.storageProfile.osDisk.osType),\r\n    IdentityType = identity.type,\r\n    ComputerName = tolower(name)\r\n| where OSType == \"Windows\"\r\n| extend ResourceType=\"Virtual Machine\"\r\n| project ComputerName, id, location, resourceGroup, PowerStatus, OSType, IdentityType,ResourceType\r\n| join kind=leftouter (\r\nresources\r\n| where type contains \"microsoft.compute/virtualmachines/extensions\"\r\n| extend publisher = properties.publisher\r\n| where publisher =~ \"Microsoft.Azure.Monitor\"\r\n| parse id with * \"/virtualMachines/\" ComputerName \"/\" *\r\n| extend extensionType = properties.type, \r\n\tstatus = tostring(properties.provisioningState),\r\n\tversion = properties.typeHandlerVersion,\r\n    ComputerName = tolower(ComputerName)\r\n| project ComputerName, AMA = name, AMAStatus = status, AMAVersion = version\r\n) on ComputerName\r\n| extend AMAStatus=case(AMAStatus==\"Succeeded\",\"Installed\",\"Not Installed\")\r\n| where (isempty(PowerStatus) or PowerStatus in ({PowerStatus})) and AMAStatus in ({AMAInstalled})\r\n) on resourceGroup\r\n| project HostPool,ComputerName, ResourceID = tolower(id),PowerStatus,AMAStatus,resourceGroup",
+                          "size": 3,
+                          "queryType": 1,
+                          "resourceType": "microsoft.resourcegraph/resources",
+                          "crossComponentResources": [
+                            "value::all"
+                          ],
+                          "gridSettings": {
+                            "rowLimit": 500,
+                            "filter": true
+                          }
+                        },
+                        "conditionalVisibility": {
+                          "parameterName": "selectedTab",
+                          "comparison": "isEqualTo",
+                          "value": "xxx"
+                        },
+                        "name": "ARG_HostPool_VMs"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "Heartbeat\r\n| where ResourceGroup in~ ({ResourceGroups})\r\n| where TimeGenerated >ago(90d)\r\n| where Category == \"Azure Monitor Agent\"\r\n| extend ResourceId=tolower(_ResourceId)\r\n| summarize lasthb=arg_max(TimeGenerated,*) by ResourceId\r\n| where ResourceType =~ \"virtualMachines\" or ResourceType =~ \"virtualMachineScaleSets\"\r\n| extend ResourceType = tolower(ResourceType)\r\n| extend Computer=case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| distinct Computer,OSType,ResourceId,ResourceType,ResourceGroup\r\n| join kind=fullouter\r\n(\r\n//AMA Heartbeat\r\nHeartbeat\r\n| where ResourceGroup in~ ({ResourceGroups})\r\n| where TimeGenerated >ago(90d)\r\n| extend ResourceType=tolower(ResourceType)\r\n| extend ResourceId = tolower(ResourceId)\r\n| where ResourceType in (\"virtualmachines\",\"virtualmachinescalesets\")\r\n| where Category == \"Azure Monitor Agent\"\r\n| extend Computer=case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer = toupper(Computer) \r\n| summarize LastAMAHeartbeat = arg_max(TimeGenerated,ResourceId,OSType) by Computer//ResourceId, Computer,OSType\r\n| extend TimeFromNow = now() - LastAMAHeartbeat\r\n| extend AMAHeartbeat = toint(TimeFromNow / 1s)\r\n) on Computer\r\n| join kind=leftouter\r\n//VMInsights\r\n(\r\nInsightsMetrics\r\n| where Origin == \"vm.azm.ms\"\r\n| where Name != \"Heartbeat\"\r\n| extend _ResourceId = tolower(_ResourceId)\r\n| extend Computer=case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastVMICollection = max(TimeGenerated) by ResourceId\r\n| extend TimeFromNow = now() - LastVMICollection\r\n| extend VMICollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//AVDPerf\r\n|join kind=leftouter (\r\nPerf\r\n| where ObjectName == \"User Input Delay per Session\"\r\n| extend _ResourceId = tolower(_ResourceId)\r\n| extend Computer=case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastAVDPerfCollection = max(TimeGenerated) by ResourceId\r\n| extend TimeFromNow = now() - LastAVDPerfCollection\r\n| extend AVDPerfCollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//WVDDiag\r\n| join kind=leftouter (\r\nWVDAgentHealthStatus\r\n| where TimeGenerated >ago(2d)\r\n| extend ResourceId = tolower(SessionHostResourceId)\r\n| extend Computer = toupper(SessionHostName) \r\n| summarize LastWVDDiag = arg_max(TimeGenerated,ResourceId) by Computer\r\n| extend TimeFromNow = now() - LastWVDDiag\r\n| extend WVDDiag = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n| extend AMAState = case (LastAMAHeartbeat>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend VMInsightsState = case (LastVMICollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend AVDPerfState = case (LastAVDPerfCollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend WVDDiagState = case (LastWVDDiag>ago(5m),\"Connected\",\"Not Connected\")\r\n| where AMAState != \"Not Connected\" and VMInsightsState != \"Not Connected\" and AVDPerfState != \"Not Connected\" and WVDDiagState != \"Not Connected\"\r\n| project Computer,ResourceId,AMAHeartbeat,VMICollection,AVDPerfCollection,WVDDiag,AMAState,VMInsightsState,AVDPerfState,WVDDiagState,ResourceGroup",
+                          "size": 0,
+                          "queryType": 0,
+                          "resourceType": "microsoft.operationalinsights/workspaces",
+                          "crossComponentResources": [
+                            "{LogAnalyticsWorkspaces}"
+                          ],
+                          "gridSettings": {
+                            "rowLimit": 1000
+                          }
+                        },
+                        "conditionalVisibility": {
+                          "parameterName": "selectedTab",
+                          "comparison": "isEqualTo",
+                          "value": "xxx"
+                        },
+                        "name": "LAWQuery-Connected"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "Heartbeat\r\n| where ResourceGroup in~ ({ResourceGroups})\r\n| where TimeGenerated >ago(90d)\r\n| where Category == \"Azure Monitor Agent\"\r\n| extend ResourceId=tolower(_ResourceId)\r\n| summarize lasthb=arg_max(TimeGenerated,*) by ResourceId\r\n| where ResourceType =~ \"virtualMachines\" or ResourceType =~ \"virtualMachineScaleSets\"\r\n| extend ResourceType = tolower(ResourceType)\r\n| extend Computer=case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| distinct Computer,OSType,ResourceId,ResourceType,ResourceGroup\r\n| join kind=fullouter\r\n(\r\n//AMA Heartbeat\r\nHeartbeat\r\n| where ResourceGroup in~ ({ResourceGroups})\r\n| where TimeGenerated >ago(90d)\r\n| extend ResourceType=tolower(ResourceType)\r\n| extend ResourceId = tolower(ResourceId)\r\n| where ResourceType in (\"virtualmachines\",\"virtualmachinescalesets\")\r\n| where Category == \"Azure Monitor Agent\"\r\n| extend Computer=case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer = toupper(Computer) \r\n| summarize LastAMAHeartbeat = arg_max(TimeGenerated,ResourceId,OSType) by Computer//ResourceId, Computer,OSType\r\n| extend TimeFromNow = now() - LastAMAHeartbeat\r\n| extend AMAHeartbeat = toint(TimeFromNow / 1s)\r\n) on Computer\r\n| join kind=leftouter\r\n//VMInsights\r\n(\r\nInsightsMetrics\r\n| where Origin == \"vm.azm.ms\"\r\n| where Name != \"Heartbeat\"\r\n| extend _ResourceId = tolower(_ResourceId)\r\n| extend Computer=case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastVMICollection = max(TimeGenerated) by ResourceId\r\n| extend TimeFromNow = now() - LastVMICollection\r\n| extend VMICollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//AVDPerf\r\n|join kind=leftouter (\r\nPerf\r\n| where ObjectName == \"User Input Delay per Session\"\r\n| extend _ResourceId = tolower(_ResourceId)\r\n| extend Computer=case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastAVDPerfCollection = max(TimeGenerated) by ResourceId\r\n| extend TimeFromNow = now() - LastAVDPerfCollection\r\n| extend AVDPerfCollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//WVDDiag\r\n| join kind=leftouter (\r\nWVDAgentHealthStatus\r\n| where TimeGenerated >ago(2d)\r\n| extend ResourceId = tolower(SessionHostResourceId)\r\n| extend Computer = toupper(SessionHostName) \r\n| summarize LastWVDDiag = arg_max(TimeGenerated,ResourceId) by Computer\r\n| extend TimeFromNow = now() - LastWVDDiag\r\n| extend WVDDiag = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n| extend AMAState = case (LastAMAHeartbeat>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend VMInsightsState = case (LastVMICollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend AVDPerfState = case (LastAVDPerfCollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend WVDDiagState = case (LastWVDDiag>ago(5m),\"Connected\",\"Not Connected\")| extend AMAState = case (LastAMAHeartbeat>ago(5m),\"Connected\",\"Not Connected\")\r\n| project Computer,ResourceId,AMAHeartbeat,VMICollection,AVDPerfCollection,WVDDiag,AMAState,VMInsightsState,AVDPerfState,WVDDiagState,ResourceGroup",
+                          "size": 0,
+                          "queryType": 0,
+                          "resourceType": "microsoft.operationalinsights/workspaces",
+                          "crossComponentResources": [
+                            "{LogAnalyticsWorkspaces}"
+                          ],
+                          "gridSettings": {
+                            "rowLimit": 1000
+                          }
+                        },
+                        "conditionalVisibility": {
+                          "parameterName": "selectedTab",
+                          "comparison": "isEqualTo",
+                          "value": "xxx"
+                        },
+                        "name": "LAWQuery-ShowAll"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "Heartbeat\r\n| where ResourceGroup in~ ({ResourceGroups})\r\n| where TimeGenerated >ago(90d)\r\n| where Category == \"Azure Monitor Agent\"\r\n| extend ResourceId=tolower(_ResourceId)\r\n| summarize lasthb=arg_max(TimeGenerated,*) by ResourceId\r\n| where ResourceType =~ \"virtualMachines\" or ResourceType =~ \"virtualMachineScaleSets\"\r\n| extend ResourceType = tolower(ResourceType)\r\n| extend Computer=case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| distinct Computer,OSType,ResourceId,ResourceType,ResourceGroup\r\n| join kind=fullouter\r\n(\r\n//AMA Heartbeat\r\nHeartbeat\r\n| where ResourceGroup in~ ({ResourceGroups})\r\n| where TimeGenerated >ago(90d)\r\n| extend ResourceType=tolower(ResourceType)\r\n| extend ResourceId = tolower(ResourceId)\r\n| where ResourceType in (\"virtualmachines\",\"virtualmachinescalesets\")\r\n| where Category == \"Azure Monitor Agent\"\r\n| extend Computer=case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(ResourceType==\"virtualmachinescalesets\",split(ResourceId,\"/virtualmachines/\")[0],ResourceId)\r\n| extend Computer = toupper(Computer) \r\n| summarize LastAMAHeartbeat = arg_max(TimeGenerated,ResourceId,OSType) by Computer//ResourceId, Computer,OSType\r\n| extend TimeFromNow = now() - LastAMAHeartbeat\r\n| extend AMAHeartbeat = toint(TimeFromNow / 1s)\r\n) on Computer\r\n| join kind=leftouter\r\n//VMInsights\r\n(\r\nInsightsMetrics\r\n| where Origin == \"vm.azm.ms\"\r\n| where Name != \"Heartbeat\"\r\n| extend _ResourceId = tolower(_ResourceId)\r\n| extend Computer=case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastVMICollection = max(TimeGenerated) by ResourceId\r\n| extend TimeFromNow = now() - LastVMICollection\r\n| extend VMICollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//AVDPerf\r\n|join kind=leftouter (\r\nPerf\r\n| where ObjectName == \"User Input Delay per Session\"\r\n| extend _ResourceId = tolower(_ResourceId)\r\n| extend Computer=case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/\")[8],Computer)\r\n| extend ResourceId = case(_ResourceId contains \"virtualmachinescalesets\",split(_ResourceId,\"/virtualmachines/\")[0],_ResourceId)\r\n| extend Computer = toupper(Computer)\r\n| where TimeGenerated > ago(2d)\r\n| summarize LastAVDPerfCollection = max(TimeGenerated) by ResourceId\r\n| extend TimeFromNow = now() - LastAVDPerfCollection\r\n| extend AVDPerfCollection = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n//WVDDiag\r\n| join kind=leftouter (\r\nWVDAgentHealthStatus\r\n| where TimeGenerated >ago(2d)\r\n| extend ResourceId = tolower(SessionHostResourceId)\r\n| extend Computer = toupper(SessionHostName) \r\n| summarize LastWVDDiag = arg_max(TimeGenerated,ResourceId) by Computer\r\n| extend TimeFromNow = now() - LastWVDDiag\r\n| extend WVDDiag = toint(TimeFromNow / 1s)\r\n) on ResourceId\r\n| extend AMAState = case (LastAMAHeartbeat>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend VMInsightsState = case (LastVMICollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend AVDPerfState = case (LastAVDPerfCollection>ago(5m),\"Connected\",\"Not Connected\")\r\n| extend WVDDiagState = case (LastWVDDiag>ago(5m),\"Connected\",\"Not Connected\")\r\n| where AMAState == \"Not Connected\" or VMInsightsState == \"Not Connected\" or AVDPerfState == \"Not Connected\" or WVDDiagState == \"Not Connected\"\r\n| project Computer,ResourceId,AMAHeartbeat,VMICollection,AVDPerfCollection,WVDDiag,AMAState,VMInsightsState,AVDPerfState,WVDDiagState,ResourceGroup",
+                          "size": 0,
+                          "queryType": 0,
+                          "resourceType": "microsoft.operationalinsights/workspaces",
+                          "crossComponentResources": [
+                            "{LogAnalyticsWorkspaces}"
+                          ]
+                        },
+                        "conditionalVisibility": {
+                          "parameterName": "selectedTab",
+                          "comparison": "isEqualTo",
+                          "value": "xxx"
+                        },
+                        "name": "LAWQuery - Disconnected"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "{\"version\":\"Merge/1.0\",\"merges\":[{\"id\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512a\",\"mergeType\":\"leftanti\",\"leftTable\":\"ARG_HostPool_VMs\",\"rightTable\":\"LAWQuery-Connected\",\"leftColumn\":\"ResourceID\",\"rightColumn\":\"ResourceId\"},{\"id\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512b\",\"mergeType\":\"leftouter\",\"leftTable\":\"ARG_HostPool_VMs\",\"rightTable\":\"LAWQuery - Disconnected\",\"leftColumn\":\"ResourceID\",\"rightColumn\":\"ResourceId\"}],\"projectRename\":[{\"originalName\":\"[VMlist].AMAStatus\",\"mergedName\":\"AMAStatus\",\"fromId\":\"unknown\"},{\"originalName\":\"[ARG_HostPool_VMs].HostPool\",\"mergedName\":\"HostPool\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512a\"},{\"originalName\":\"[ARG_HostPool_VMs].ComputerName\",\"mergedName\":\"ComputerName\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512a\"},{\"originalName\":\"[ARG_HostPool_VMs].ResourceID\",\"mergedName\":\"ResourceID\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512a\"},{\"originalName\":\"[ARG_HostPool_VMs].PowerStatus\",\"mergedName\":\"PowerStatus\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512a\"},{\"originalName\":\"[ARG_HostPool_VMs].AMAStatus\",\"mergedName\":\"AMAStatus\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512a\"},{\"originalName\":\"[LAWQuery - Disconnected].Computer\",\"mergedName\":\"Computer\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512b\"},{\"originalName\":\"[LAWQuery - Disconnected].ResourceId\",\"mergedName\":\"ResourceId\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512b\"},{\"originalName\":\"[LAWQuery - Disconnected].AMAHeartbeat\",\"mergedName\":\"AMAHeartbeat\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512b\"},{\"originalName\":\"[LAWQuery - Disconnected].VMICollection\",\"mergedName\":\"VMICollection\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512b\"},{\"originalName\":\"[LAWQuery - Disconnected].AMAState\",\"mergedName\":\"AMAState\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512b\"},{\"originalName\":\"[LAWQuery - Disconnected].VMInsightsState\",\"mergedName\":\"VMInsightsState\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e4512b\"},{\"originalName\":\"[ARG_HostPool_VMs].resourceGroup\",\"mergedName\":\"resourceGroup\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery - Disconnected].ResourceGroup\",\"mergedName\":\"ResourceGroup\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery - Disconnected].AVDPerfState\",\"mergedName\":\"AVDPerfState\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery - Disconnected].WVDDiagState\",\"mergedName\":\"WVDDiagState\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery - Disconnected].AVDPerfCollection\",\"mergedName\":\"AVDPerfCollection\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery - Disconnected].WVDDiag\",\"mergedName\":\"WVDDiag\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery - Disconnected].Computer\"},{\"originalName\":\"[LAWQuery - Disconnected].ResourceId\"}]}",
+                          "size": 0,
+                          "queryType": 7,
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "ComputerName",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "ResourceID",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "21ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "Installed",
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "Not Installed",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "unknown",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "Computer",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "ResourceId",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "AMAHeartbeat",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "operator": ">",
+                                      "thresholdValue": "300",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "VMICollection",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "operator": ">",
+                                      "thresholdValue": "300",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "VMInsightsState",
+                                "formatter": 5,
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "resourceGroup",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "ResourceGroup",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "AVDPerfState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "WVDDiagState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "AVDPerfCollection",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "operator": ">",
+                                      "thresholdValue": "300",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "minimumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "WVDDiag",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "operator": ">",
+                                      "thresholdValue": "300",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "minimumFractionDigits": 0
+                                  }
+                                }
+                              }
+                            ],
+                            "rowLimit": 1000,
+                            "filter": true,
+                            "sortBy": [
+                              {
+                                "itemKey": "PowerStatus",
+                                "sortOrder": 1
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "HostPool",
+                                "label": "Host Pool"
+                              },
+                              {
+                                "columnId": "ComputerName",
+                                "label": "Computer Name"
+                              },
+                              {
+                                "columnId": "ResourceID",
+                                "label": "Azure Resource"
+                              },
+                              {
+                                "columnId": "PowerStatus",
+                                "label": "Power Status"
+                              },
+                              {
+                                "columnId": "AMAStatus",
+                                "label": "Azure Monitor Agent"
+                              },
+                              {
+                                "columnId": "Computer",
+                                "label": "Computer"
+                              },
+                              {
+                                "columnId": "ResourceId",
+                                "label": "ResourceId"
+                              },
+                              {
+                                "columnId": "AMAHeartbeat",
+                                "label": "Heartbeat"
+                              },
+                              {
+                                "columnId": "VMICollection",
+                                "label": "VM Insights"
+                              },
+                              {
+                                "columnId": "AMAState",
+                                "label": "AMAState"
+                              },
+                              {
+                                "columnId": "VMInsightsState",
+                                "label": "VMInsightsState"
+                              },
+                              {
+                                "columnId": "resourceGroup",
+                                "label": "resourceGroup"
+                              },
+                              {
+                                "columnId": "ResourceGroup",
+                                "label": "ResourceGroup"
+                              },
+                              {
+                                "columnId": "AVDPerfState",
+                                "label": "AVDPerfState"
+                              },
+                              {
+                                "columnId": "WVDDiagState",
+                                "label": "WVDDiagState"
+                              },
+                              {
+                                "columnId": "AVDPerfCollection",
+                                "label": "AVD Performance"
+                              },
+                              {
+                                "columnId": "WVDDiag",
+                                "label": "AVD Diagnostics"
+                              }
+                            ]
+                          },
+                          "sortBy": [
+                            {
+                              "itemKey": "PowerStatus",
+                              "sortOrder": 1
+                            }
+                          ]
+                        },
+                        "conditionalVisibility": {
+                          "parameterName": "ShowAll",
+                          "comparison": "isEqualTo",
+                          "value": "Only Disconnected"
+                        },
+                        "showPin": false,
+                        "name": "Merge - DisconnectedOnly"
+                      },
+                      {
+                        "type": 3,
+                        "content": {
+                          "version": "KqlItem/1.0",
+                          "query": "{\"version\":\"Merge/1.0\",\"merges\":[{\"id\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\",\"mergeType\":\"leftouter\",\"leftTable\":\"ARG_HostPool_VMs\",\"rightTable\":\"LAWQuery-ShowAll\",\"leftColumn\":\"ResourceID\",\"rightColumn\":\"ResourceId\"}],\"projectRename\":[{\"originalName\":\"[ARG_HostPool_VMs].HostPool\",\"mergedName\":\"HostPool\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[LAWQuery-ShowAll].Computer\",\"mergedName\":\"Computer\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[ARG_HostPool_VMs].ComputerName\",\"mergedName\":\"ComputerName\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[ARG_HostPool_VMs].ResourceID\",\"mergedName\":\"ResourceID\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[ARG_HostPool_VMs].PowerStatus\",\"mergedName\":\"PowerStatus\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[ARG_HostPool_VMs].AMAStatus\",\"mergedName\":\"AMAStatus\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[LAWQuery-ShowAll].AMAHeartbeat\",\"mergedName\":\"AMAHeartbeat\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[LAWQuery-ShowAll].VMICollection\",\"mergedName\":\"VMICollection\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[LAWQuery-ShowAll].AMAState\",\"mergedName\":\"AMAState\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[LAWQuery-ShowAll].VMInsightsState\",\"mergedName\":\"VMInsightsState\",\"fromId\":\"3e20269b-01eb-4fe1-b331-9af0e6e451c3\"},{\"originalName\":\"[ARG_HostPool_VMs].resourceGroup\",\"mergedName\":\"resourceGroup\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery-ShowAll].ResourceGroup\",\"mergedName\":\"ResourceGroup\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery-ShowAll].AVDPerfState\",\"mergedName\":\"AVDPerfState\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery-ShowAll].WVDDiagState\",\"mergedName\":\"WVDDiagState\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery-ShowAll].AVDPerfCollection\",\"mergedName\":\"AVDPerfCollection\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery-ShowAll].WVDDiag\",\"mergedName\":\"WVDDiag\",\"fromId\":\"unknown\"},{\"originalName\":\"[LAWQuery-ShowAll].ResourceId\"}]}",
+                          "size": 0,
+                          "queryType": 7,
+                          "gridSettings": {
+                            "formatters": [
+                              {
+                                "columnMatch": "Computer",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "ComputerName",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "ResourceID",
+                                "formatter": 0,
+                                "formatOptions": {
+                                  "customColumnWidthSetting": "21ch"
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAStatus",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "Installed",
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "==",
+                                      "thresholdValue": "Not Installed",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "unknown",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAHeartbeat",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "operator": ">",
+                                      "thresholdValue": "300",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "VMICollection",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "operator": ">",
+                                      "thresholdValue": "300",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "AMAState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "VMInsightsState",
+                                "formatter": 5,
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "resourceGroup",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "ResourceGroup",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "AVDPerfState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "WVDDiagState",
+                                "formatter": 5
+                              },
+                              {
+                                "columnMatch": "AVDPerfCollection",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "operator": ">",
+                                      "thresholdValue": "300",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "minimumFractionDigits": 0
+                                  }
+                                }
+                              },
+                              {
+                                "columnMatch": "WVDDiag",
+                                "formatter": 18,
+                                "formatOptions": {
+                                  "thresholdsOptions": "icons",
+                                  "thresholdsGrid": [
+                                    {
+                                      "operator": "is Empty",
+                                      "representation": "4",
+                                      "text": "None"
+                                    },
+                                    {
+                                      "operator": ">",
+                                      "thresholdValue": "300",
+                                      "representation": "4",
+                                      "text": "{0}{1}"
+                                    },
+                                    {
+                                      "operator": "Default",
+                                      "thresholdValue": null,
+                                      "representation": "success",
+                                      "text": "{0}{1}"
+                                    }
+                                  ]
+                                },
+                                "numberFormat": {
+                                  "unit": 24,
+                                  "options": {
+                                    "style": "decimal",
+                                    "maximumFractionDigits": 0
+                                  }
+                                }
+                              }
+                            ],
+                            "rowLimit": 1000,
+                            "filter": true,
+                            "sortBy": [
+                              {
+                                "itemKey": "$gen_link_ResourceID_3",
+                                "sortOrder": 1
+                              }
+                            ],
+                            "labelSettings": [
+                              {
+                                "columnId": "HostPool",
+                                "label": "Host Pool"
+                              },
+                              {
+                                "columnId": "Computer",
+                                "label": "Computer"
+                              },
+                              {
+                                "columnId": "ComputerName",
+                                "label": "Computer Name"
+                              },
+                              {
+                                "columnId": "ResourceID",
+                                "label": "ResourceID"
+                              },
+                              {
+                                "columnId": "PowerStatus",
+                                "label": "Power Status"
+                              },
+                              {
+                                "columnId": "AMAStatus",
+                                "label": "Azure Monitor Agent"
+                              },
+                              {
+                                "columnId": "AMAHeartbeat",
+                                "label": "Heartbeat"
+                              },
+                              {
+                                "columnId": "VMICollection",
+                                "label": "VM Insights Data"
+                              },
+                              {
+                                "columnId": "AMAState",
+                                "label": "AMAState"
+                              },
+                              {
+                                "columnId": "VMInsightsState",
+                                "label": "VMInsightsState"
+                              },
+                              {
+                                "columnId": "resourceGroup",
+                                "label": "resourceGroup"
+                              },
+                              {
+                                "columnId": "ResourceGroup",
+                                "label": "ResourceGroup"
+                              },
+                              {
+                                "columnId": "AVDPerfState",
+                                "label": "AVDPerfState"
+                              },
+                              {
+                                "columnId": "WVDDiagState",
+                                "label": "WVDDiagState"
+                              },
+                              {
+                                "columnId": "AVDPerfCollection",
+                                "label": "AVD Performance"
+                              },
+                              {
+                                "columnId": "WVDDiag",
+                                "label": "AVD Diagnostic"
+                              }
+                            ]
+                          },
+                          "sortBy": [
+                            {
+                              "itemKey": "$gen_link_ResourceID_3",
+                              "sortOrder": 1
+                            }
+                          ]
+                        },
+                        "conditionalVisibility": {
+                          "parameterName": "ShowAll",
+                          "comparison": "isEqualTo",
+                          "value": "Show All"
+                        },
+                        "showPin": false,
+                        "name": "Merge - ShowAll"
+                      }
+                    ]
+                  },
+                  "name": "VMsBySubscriptionGroup",
+                  "styleSettings": {
+                    "showBorder": true
+                  }
+                }
+              ]
+            },
+            "conditionalVisibility": {
+              "parameterName": "selectedTab",
+              "comparison": "isEqualTo",
+              "value": "Details"
+            },
+            "name": "Details Group"
+          }
+        ]
+      },
+      "name": "VM_Group"
+    }
+  ],
+  "fallbackResourceIds": [
+    "Azure Monitor"
+  ],
+  "fromTemplateId": "community-Workbooks/Azure Monitor - Agents/Overview",
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

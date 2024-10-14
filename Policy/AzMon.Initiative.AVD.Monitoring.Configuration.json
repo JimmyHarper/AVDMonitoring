@@ -1,0 +1,260 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "resources": [
+        {
+            "type": "Microsoft.Authorization/policySetDefinitions",
+            "name": "AzMon.AVD.Monitoring.Configuration",
+            "apiVersion": "2019-09-01",
+            "properties": {
+                       "Description":  "",
+                       "DisplayName":  "Azure Monitor: AVD Monitoring Configuration",
+                       "Metadata":  {
+                                        "category":  "Monitoring"
+                                    },
+                       "Parameters":  {
+                                          "Effect":  {
+                                                         "type":  "string",
+                                                         "metadata":  {
+                                                                          "displayName":  "Effect",
+                                                                          "description":  null
+                                                                      },
+                                                         "allowedValues":  [
+                                                                               "DeployIfNotExists",
+                                                                               "Disabled"
+                                                                           ],
+                                                         "defaultValue":  "DeployIfNotExists"
+                                                     },
+                                          "User-Assigned Managed Identity Name":  {
+                                                                                      "type":  "string",
+                                                                                      "metadata":  {
+                                                                                                       "displayName":  "User-Assigned Managed Identity Name",
+                                                                                                       "description":  null
+                                                                                                   },
+                                                                                      "defaultValue":  "USER_ASSIGNED_IDENTITY_NAME"
+                                                                                  },
+                                          "User-Assigned Managed Identity Resource Group":  {
+                                                                                                "type":  "string",
+                                                                                                "metadata":  {
+                                                                                                                 "displayName":  "User-Assigned Managed Identity Resource Group",
+                                                                                                                 "description":  null
+                                                                                                             },
+                                                                                                "defaultValue":  "USER_ASSIGNED_IDENTITY_RESOURCE_GROUP_NAME"
+                                                                                            },
+                                          "VM Insights DCR":  {
+                                                                  "type":  "string",
+                                                                  "metadata":  {
+                                                                                   "displayName":  "VM Insights DCR",
+                                                                                   "description":  null
+                                                                               },
+                                                                  "defaultValue":  "VM_INSIGHTS_DCR_ID"
+                                                              },
+                                          "AVD Insights DCR":  {
+                                                                   "type":  "string",
+                                                                   "metadata":  {
+                                                                                    "displayName":  "AVD Insights DCR",
+                                                                                    "description":  null
+                                                                                },
+                                                                   "defaultValue":  "AVD_INSIGHTS_DCR_ID"
+                                                               },
+                                          "Log Analytics Workspace":  {
+                                                                          "type":  "string",
+                                                                          "metadata":  {
+                                                                                           "displayName":  "Log Analytics Workspace"
+                                                                                       },
+                                                                          "defaultValue":  "LOG_ANALYTICS_WORKSPACE_ID"
+                                                                      },
+                                          "Diagnostic Setting Name":  {
+                                                                          "type":  "string",
+                                                                          "metadata":  {
+                                                                                           "displayName":  "Diagnostic Setting Name"
+                                                                                       },
+                                                                          "defaultValue":  "setByPolicy-LogAnalytics"
+                                                                      },
+                                          "Additional Windows VM Images":  {
+                                                                               "type":  "array",
+                                                                               "metadata":  {
+                                                                                                "displayName":  "Additional Windows VM Images",
+                                                                                                "description":  null
+                                                                                            },
+                                                                               "defaultValue":  [
+
+                                                                                                ]
+                                                                           },
+                                          "Scope Windows VMs to supported OS":  {
+                                                                                    "type":  "boolean",
+                                                                                    "metadata":  {
+                                                                                                     "displayName":  "Scope Windows VMs to supported OS",
+                                                                                                     "description":  null
+                                                                                                 },
+                                                                                    "defaultValue":  false
+                                                                                }
+                                      },
+                       "PolicyDefinitionGroups":  [
+                                                  ],
+                       "PolicyDefinitions":  [
+                                                               {
+                                                                   "policyDefinitionReferenceId":  "All VMs: Assign user-assigned identity",
+                                                                   "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.All.VMs.AssignUserAssignedIdentity')]",
+                                                                   "parameters":  {
+                                                                                      "userAssignedIdentityName":  {
+                                                                                                                       "value":  "[[parameters(\u0027User-Assigned Managed Identity Name\u0027)]"
+                                                                                                                   },
+                                                                                      "identityResourceGroup":  {
+                                                                                                                    "value":  "[[parameters(\u0027User-Assigned Managed Identity Resource Group\u0027)]"
+                                                                                                                },
+                                                                                      "effect":  {
+                                                                                                     "value":  "[[parameters(\u0027Effect\u0027)]"
+                                                                                                 }
+                                                                                  },
+                                                                   "groupNames":  [
+
+                                                                                  ]
+                                                               },
+                                                               {
+                                                                   "policyDefinitionReferenceId":  "Windows VM: Azure Monitor Agent",
+                                                                   "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.AzureMonitorAgent.UserAssignedIdentity')]",
+                                                                   "parameters":  {
+                                                                                      "effect":  {
+                                                                                                     "value":  "[[parameters(\u0027Effect\u0027)]"
+                                                                                                 },
+                                                                                      "bringYourOwnUserAssignedManagedIdentity":  {
+                                                                                                                                      "value":  true
+                                                                                                                                  },
+                                                                                      "userAssignedManagedIdentityName":  {
+                                                                                                                              "value":  "[[parameters(\u0027User-Assigned Managed Identity Name\u0027)]"
+                                                                                                                          },
+                                                                                      "userAssignedManagedIdentityResourceGroup":  {
+                                                                                                                                       "value":  "[[parameters(\u0027User-Assigned Managed Identity Resource Group\u0027)]"
+                                                                                                                                   },
+                                                                                      "scopeToSupportedImages":  {
+                                                                                                                     "value":  "[[parameters(\u0027Scope Windows VMs to supported OS\u0027)]"
+                                                                                                                 },
+                                                                                      "listOfWindowsImageIdToInclude":  {
+                                                                                                                            "value":  "[[parameters(\u0027Additional Windows VM Images\u0027)]"
+                                                                                                                        }
+                                                                                  },
+                                                                   "groupNames":  [
+
+                                                                                  ]
+                                                               },
+                                                               {
+                                                                   "policyDefinitionReferenceId":  "Windows VM - Dependency Agent",
+                                                                   "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.DependencyAgent')]",
+                                                                   "parameters":  {
+                                                                                      "listOfImageIdToInclude":  {
+                                                                                                                     "value":  "[[parameters(\u0027Additional Windows VM Images\u0027)]"
+                                                                                                                 },
+                                                                                      "effect":  {
+                                                                                                     "value":  "[[parameters(\u0027Effect\u0027)]"
+                                                                                                 },
+                                                                                      "scopeToSupportedImages":  {
+                                                                                                                     "value":  "[[parameters(\u0027Scope Windows VMs to supported OS\u0027)]"
+                                                                                                                 }
+                                                                                  },
+                                                                   "groupNames":  [
+
+                                                                                  ]
+                                                               },
+                                                               {
+                                                                   "policyDefinitionReferenceId":  "Windows VM - VM Insights Data Collection Rule",
+                                                                   "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.DCRa')]",
+                                                                   "parameters":  {
+                                                                                      "effect":  {
+                                                                                                     "value":  "[[parameters(\u0027Effect\u0027)]"
+                                                                                                 },
+                                                                                      "scopeToSupportedImages":  {
+                                                                                                                     "value":  "[[parameters(\u0027Scope Windows VMs to supported OS\u0027)]"
+                                                                                                                 },
+                                                                                      "listOfWindowsImageIdToInclude":  {
+                                                                                                                            "value":  "[[parameters(\u0027Additional Windows VM Images\u0027)]"
+                                                                                                                        },
+                                                                                      "dcrResourceId":  {
+                                                                                                            "value":  "[[parameters(\u0027VM Insights DCR\u0027)]"
+                                                                                                        }
+                                                                                  },
+                                                                   "groupNames":  [
+
+                                                                                  ]
+                                                               },
+                                                               {
+                                                                   "policyDefinitionReferenceId":  "Windows VM: AVD Insights Data Collection Rule",
+                                                                   "policyDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/policyDefinitions/AzMon.Windows.VM.DCRa')]",
+                                                                   "parameters":  {
+                                                                                      "effect":  {
+                                                                                                     "value":  "[[parameters(\u0027Effect\u0027)]"
+                                                                                                 },
+                                                                                      "scopeToSupportedImages":  {
+                                                                                                                     "value":  "[[parameters(\u0027Scope Windows VMs to supported OS\u0027)]"
+                                                                                                                 },
+                                                                                      "listOfWindowsImageIdToInclude":  {
+                                                                                                                            "value":  "[[parameters(\u0027Additional Windows VM Images\u0027)]"
+                                                                                                                        },
+                                                                                      "dcrResourceId":  {
+                                                                                                            "value":  "[[parameters(\u0027AVD Insights DCR\u0027)]"
+                                                                                                        }
+                                                                                  },
+                                                                   "groupNames":  [
+
+                                                                                  ]
+                                                               },
+                                                               {
+                                                                   "policyDefinitionReferenceId":  "Enable logging by category group for Application group (microsoft.desktopvirtualization/applicationg_1",
+                                                                   "policyDefinitionId":  "/providers/Microsoft.Authorization/policyDefinitions/3aa571d2-2e4f-4e92-8a30-4312860efbe1",
+                                                                   "parameters":  {
+                                                                                      "effect":  {
+                                                                                                     "value":  "[[parameters(\u0027Effect\u0027)]"
+                                                                                                 },
+                                                                                      "diagnosticSettingName":  {
+                                                                                                                    "value":  "[[parameters(\u0027Diagnostic Setting Name\u0027)]"
+                                                                                                                },
+                                                                                      "logAnalytics":  {
+                                                                                                           "value":  "[[parameters(\u0027Log Analytics Workspace\u0027)]"
+                                                                                                       }
+                                                                                  },
+                                                                   "groupNames":  [
+
+                                                                                  ]
+                                                               },
+                                                               {
+                                                                   "policyDefinitionReferenceId":  "Enable logging by category group for Workspace (microsoft.desktopvirtualization/workspaces) to Log A_1",
+                                                                   "policyDefinitionId":  "/providers/Microsoft.Authorization/policyDefinitions/6bb23bce-54ea-4d3d-b07d-628ce0f2e4e3",
+                                                                   "parameters":  {
+                                                                                      "effect":  {
+                                                                                                     "value":  "[[parameters(\u0027Effect\u0027)]"
+                                                                                                 },
+                                                                                      "diagnosticSettingName":  {
+                                                                                                                    "value":  "[[parameters(\u0027Diagnostic Setting Name\u0027)]"
+                                                                                                                },
+                                                                                      "logAnalytics":  {
+                                                                                                           "value":  "[[parameters(\u0027Log Analytics Workspace\u0027)]"
+                                                                                                       }
+                                                                                  },
+                                                                   "groupNames":  [
+
+                                                                                  ]
+                                                               },
+                                                               {
+                                                                   "policyDefinitionReferenceId":  "Enable logging by category group for Host pool (microsoft.desktopvirtualization/hostpools) to Log An_1",
+                                                                   "policyDefinitionId":  "/providers/Microsoft.Authorization/policyDefinitions/6f95136f-6544-4722-a354-25a18ddb18a7",
+                                                                   "parameters":  {
+                                                                                      "effect":  {
+                                                                                                     "value":  "DeployIfNotExists"
+                                                                                                 },
+                                                                                      "diagnosticSettingName":  {
+                                                                                                                    "value":  "[[parameters(\u0027Diagnostic Setting Name\u0027)]"
+                                                                                                                },
+                                                                                      "logAnalytics":  {
+                                                                                                           "value":  "[[parameters(\u0027Log Analytics Workspace\u0027)]"
+                                                                                                       }
+                                                                                  },
+                                                                   "groupNames":  [
+
+                                                                                  ]
+                                                               }
+                                             ],
+                       "PolicyType": "Custom"
+                   }
+        }
+    ]
+}
